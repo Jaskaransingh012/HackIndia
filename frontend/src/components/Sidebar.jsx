@@ -46,6 +46,11 @@ const Sidebar = () => {
             </NavLink>
           </li>
           <li>
+            <NavLink to="/about" className={({ isActive }) => (isActive ? 'active' : '')}>
+              About
+            </NavLink>
+          </li>
+          <li>
             <NavLink to="/gallery" className={({ isActive }) => (isActive ? 'active' : '')}>
               Gallery
             </NavLink>
