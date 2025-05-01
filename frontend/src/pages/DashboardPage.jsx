@@ -39,8 +39,8 @@ const DashboardPage = () => {
       <h2 className="dashboard-heading">Dashboard</h2>
 
       <div className="profile-section">
-        <motion.img
-          src={user.profilePic || "/default-avatar.png"}
+        <img
+          src={user.profilePic.url || "/default-avatar.png"}
           alt="Profile"
           className="profile-picture"
           whileHover={{ scale: 1.05 }}
