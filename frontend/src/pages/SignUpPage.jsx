@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import Input from "../components/Input";
-import { Loader, Lock, Mail, User } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Loader, Lock, Mail, User, Camera } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PasswordStrengthMeter from "../components/PasswordStrengthMeter";
 import { useAuthStore } from "../store/authStore";
@@ -13,14 +13,93 @@ const SignUpPage = () => {
   const [password, setPassword] = useState("");
   const [profilePic, setProfilePic] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [showCameraInterface, setShowCameraInterface] = useState(false);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
+  
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const [videoStream, setVideoStream] = useState(null);
+  
   const navigate = useNavigate();
   const { signup, error, isLoading } = useAuthStore();
+
+  // Start/stop camera when camera interface is toggled
+  useEffect(() => {
+    if (showCameraInterface) {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+
+    return () => {
+      stopCamera();
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [showCameraInterface]);
+
+  const startCamera = async () => {
+    try {
+      setCameraError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "user" } // Front camera
+      });
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setVideoStream(stream);
+        setIsCameraActive(true);
+      }
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      setCameraError("Could not access camera. Please check permissions.");
+      setShowCameraInterface(false);
+      setIsCameraActive(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoStream) {
+      videoStream.getTracks().forEach(track => track.stop());
+      setIsCameraActive(false);
+      setVideoStream(null);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (!isCameraActive || !canvasRef.current || !videoRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    const context = canvas.getContext('2d');
+    
+    // Set canvas dimensions to match video frame
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Draw current video frame to canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Convert canvas to Blob then to File
+    canvas.toBlob((blob) => {
+      const file = new File([blob], 'profile-photo.jpg', { 
+        type: 'image/jpeg',
+        lastModified: Date.now()
+      });
+      setProfilePic(file);
+      setPreviewUrl(URL.createObjectURL(blob));
+      setShowCameraInterface(false);
+    }, 'image/jpeg', 0.9);
+  };
 
   const handleProfilePicChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setProfilePic(file);
       setPreviewUrl(URL.createObjectURL(file));
+      setShowCameraInterface(false);
     }
   };
 
@@ -31,23 +110,16 @@ const SignUpPage = () => {
       formData.append("name", name);
       formData.append("email", email);
       formData.append("password", password);
-      formData.append("profilePic", profilePic); // profilePic should be a File object
-  
+      if (profilePic) {
+        formData.append("profilePic", profilePic);
+      }
+
       await signup(formData);
       navigate("/verify-email");
     } catch (error) {
       // Error is handled by authStore
     }
   };
-  
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
 
   return (
     <motion.div
@@ -61,30 +133,86 @@ const SignUpPage = () => {
 
         <form onSubmit={handleSignUp}>
           <div className="profile-pic-section">
-            <label htmlFor="profilePic" className="profile-pic-label">
-              {previewUrl ? (
-                <img src={previewUrl} alt="Profile Preview" className="profile-pic-preview" />
-              ) : (
-                <div className="profile-pic-placeholder">
-                  <User size={24} className="profile-pic-icon" />
-                  <p>Add Profile Picture</p>
-                </div>
-              )}
-            </label>
-            <input
-              type="file"
-              id="profilePic"
-              className="profile-pic-input"
-              accept="image/*"
-              onChange={handleProfilePicChange}
-            />
+            {showCameraInterface ? (
+              <div className="camera-interface">
+                {cameraError ? (
+                  <div className="camera-error">
+                    <p>{cameraError}</p>
+                    <button 
+                      type="button"
+                      className="switch-mode-button"
+                      onClick={() => setShowCameraInterface(false)}
+                    >
+                      Upload Instead
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <video 
+                      ref={videoRef} 
+                      className="camera-preview"
+                      autoPlay
+                      playsInline
+                      muted
+                    />
+                    <canvas ref={canvasRef} style={{ display: 'none' }} />
+                    <div className="camera-controls">
+                      <button
+                        type="button"
+                        className="capture-button"
+                        onClick={capturePhoto}
+                        disabled={!isCameraActive}
+                      >
+                        <Camera size={24} />
+                      </button>
+                      <button
+                        type="button"
+                        className="switch-mode-button"
+                        onClick={() => setShowCameraInterface(false)}
+                      >
+                        Upload Photo
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <>
+                <label htmlFor="profilePic" className="profile-pic-label">
+                  {previewUrl ? (
+                    <img src={previewUrl} alt="Profile Preview" className="profile-pic-preview" />
+                  ) : (
+                    <div className="profile-pic-placeholder">
+                      <User size={24} className="profile-pic-icon" />
+                      <p>Add Profile Picture</p>
+                    </div>
+                  )}
+                </label>
+                <input
+                  type="file"
+                  id="profilePic"
+                  className="profile-pic-input"
+                  accept="image/*"
+                  onChange={handleProfilePicChange}
+                />
+                <button
+                  type="button"
+                  className="switch-mode-button"
+                  onClick={() => setShowCameraInterface(true)}
+                >
+                  Take Photo
+                </button>
+              </>
+            )}
           </div>
+
           <Input
             icon={User}
             type="text"
             placeholder="Full Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            required
           />
           <Input
             icon={Mail}
@@ -92,6 +220,7 @@ const SignUpPage = () => {
             placeholder="Email Address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            required
           />
           <Input
             icon={Lock}
@@ -99,6 +228,7 @@ const SignUpPage = () => {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            required
           />
           
           {error && <p className="error-message">{error}</p>}

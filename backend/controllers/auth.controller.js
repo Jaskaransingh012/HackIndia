@@ -1,6 +1,9 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import uploadToCloudinary from "../cloudinary/uploadToCloudinary.js";
+import fs from "fs";
+import axios from "axios";
+import FormData from "form-data";
 
 
 import { User } from "../models/user.model.js";
@@ -21,15 +24,39 @@ const signup = async (req, res) => {
       if (!name || !email || !password) {
         throw new Error("All fields are required");
       }
-      console.log(res.file);
   
       const userExist = await User.findOne({ email });
-      console.log(userExist);
       if (userExist) throw new Error("User already exists");
   
-      let profilePicUrl = "";
+      let profilePicData = null;
+  
       if (req.file) {
-        profilePicUrl = await uploadToCloudinary(req.file.path);
+        console.log("first")
+        const formData = new FormData();
+        formData.append("img", fs.createReadStream(req.file.path));
+        const response = await axios.post("http://localhost:8000/embedding", formData, {
+            headers: formData.getHeaders(),
+            withCredentials: true,
+          });
+          console.log("second")
+          
+        const profilePicUrl = await uploadToCloudinary(req.file.path);
+        console.log(profilePicUrl);
+        
+        console.log("third")
+  
+        
+  
+        if (response.data.error) {
+          throw new Error("Failed to get embedding from Python service");
+        }
+  
+        const embedding = response.data.embedding;
+  
+        profilePicData = {
+          url: profilePicUrl,
+          embedding: embedding,
+        };
       }
   
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -39,7 +66,7 @@ const signup = async (req, res) => {
         name,
         email,
         password: hashedPassword,
-        profilePic: profilePicUrl,
+        profilePic: profilePicData,
         verificationToken,
         verificationTokenExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       });
@@ -57,9 +84,12 @@ const signup = async (req, res) => {
         },
       });
     } catch (error) {
+        console.log(error);
       res.status(400).json({ success: false, message: error.message });
     }
   };
+
+  
 const verifyEmail = async (req, res) => {
     const { code } = req.body;
     try {

@@ -24,7 +24,7 @@ const DashboardPage = () => {
 
       <div className="profile-section">
         <img
-          src={user.profilePic || "/default-avatar.png"}
+          src={user.profilePic.url || "/default-avatar.png"}
           alt="Profile"
           className="profile-picture"
         />
