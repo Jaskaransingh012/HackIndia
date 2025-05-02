@@ -55,6 +55,11 @@ const Sidebar = () => {
               Gallery
             </NavLink>
           </li>
+          <li>
+            <NavLink to="/my-groups" className={({ isActive }) => (isActive ? 'active' : '')}>
+              My Groups
+            </NavLink>
+          </li>
         </ul>
       </nav>
       <div className="sidebar-footer">

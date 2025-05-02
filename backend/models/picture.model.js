@@ -13,7 +13,11 @@ const pictureSchema = new mongoose.Schema({
   url: {
     type: String,
     required: true
-  }
+  },
+  processedUsers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }]
 }, { timestamps: true })
 
 export const Picture = mongoose.model("Picture", pictureSchema)

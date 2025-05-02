@@ -17,16 +17,16 @@ const groupSchema = mongoose.Schema({
             required: true
         }
     ],
-    code:{
+    uniqueCode: {
         type: String,
-        required: true
+        required: true,
+        unique: true
     },
-    pictures:[{
+    pictures: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Picture',
         required: true
     }]
-
-})
+});
 
 export const Group = mongoose.model('Group', groupSchema);

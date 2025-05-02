@@ -12,7 +12,6 @@ const uploadPicture = async (req, res) => {
         const file = req.file;
         let pictureUrl  = "";
         if(file){
-            console.log("aaya 2")
             pictureUrl = await uploadToCloudinary(file.path);
             console.log("aaya 3")
         }else{

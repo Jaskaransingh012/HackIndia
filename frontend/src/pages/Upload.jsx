@@ -1,23 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import '../css/DragDropPage.css';
 import { zipToFiles } from '../deepface/ZipfileConverter';
 import DropZone from '../components/DropZone';
-import JSZip from 'jszip';
 import CircularProgressWithLabel from '../components/Loader';
 import { useNavigate } from 'react-router-dom';
 
 function Upload() {
   const navigate = useNavigate();
 
+  // State variables
   const [isLeftLoading, setIsLeftLoading] = useState(false);
   const [leftFiles, setLeftFiles] = useState([]);
   const [leftName, setLeftName] = useState(null);
-
   const [isRightLoading, setIsRightLoading] = useState(false);
   const [rightFile, setRightFile] = useState(null);
-
   const [isFiltering, setIsFiltering] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
+
+  // Refs
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
 
   const processEntry = async (entry, fileList) => {
     const reader = entry.createReader();
@@ -123,6 +136,69 @@ function Upload() {
     setRightFile(null);
   };
 
+  const handleCamera = async () => {
+    try {
+      if (isCameraActive) {
+        stopCamera();
+        return;
+      }
+
+      const constraints = {
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current.play().catch(error => {
+            console.error('Error playing video:', error);
+            setCameraError('Error accessing camera feed');
+          });
+        };
+        setIsCameraActive(true);
+        setCameraError(null);
+      }
+    } catch (error) {
+      console.error('Camera error:', error);
+      setCameraError('Camera access denied. Please check permissions.');
+      stopCamera();
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  const handleCapture = () => {
+    if (!videoRef.current || !streamRef.current) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(videoRef.current, 0, 0);
+
+    canvas.toBlob(blob => {
+      const file = new File([blob], 'capture.png', { type: 'image/png' });
+      setRightFile(file);
+      stopCamera();
+    }, 'image/png');
+  };
+
   const handleFilterClick = async () => {
     if (!leftFiles.length || !rightFile) return;
 
@@ -140,11 +216,6 @@ function Upload() {
           formData.append("img1", file, file.name);
           formData.append("img2", rightFile, rightFile.name);
 
-          // Optional: log formData entries for debugging
-          for (let pair of formData.entries()) {
-            console.log(pair[0], pair[1]);
-          }
-
           try {
             const res = await fetch("http://127.0.0.1:8000/verify", {
               method: "POST",
@@ -154,7 +225,7 @@ function Upload() {
             const result = await res.json();
             console.log(`Result for ${file.name}:`, result);
 
-            if (result.verified) { // Assuming backend returns a 'verified' field
+            if (result.verified) {
               matchingFiles.push(file);
             }
           } catch (error) {
@@ -166,8 +237,6 @@ function Upload() {
         setProgress((processedFiles / totalFiles) * 100);
       }
 
-
-      // Create ZIP file with matching images
       const matchingFileURLs = matchingFiles.map(file => ({
         name: file.name,
         url: URL.createObjectURL(file),
@@ -182,8 +251,6 @@ function Upload() {
     } catch (err) {
       console.error("Error processing files:", err);
     }
-
-    
   };
 
   return (
@@ -262,10 +329,39 @@ function Upload() {
               )}
               defaultMessage="Drag a single image here or click to select"
             />
+            <div className="camera-options">
+              <button 
+                className="camera-button"
+                onClick={handleCamera}
+                disabled={isFiltering}
+              >
+                {isCameraActive ? 'Stop Camera' : 'Use Camera'}
+              </button>
+              
+              {cameraError && (
+                <div className="camera-error">{cameraError}</div>
+              )}
+
+              <div className="camera-preview" style={{ display: isCameraActive ? 'block' : 'none' }}>
+                <video 
+                  ref={videoRef} 
+                  autoPlay 
+                  playsInline 
+                  muted 
+                  style={{ display: isCameraActive ? 'block' : 'none' }}
+                />
+                {isCameraActive && (
+                  <button 
+                    className="capture-button"
+                    onClick={handleCapture}
+                  >
+                    Capture
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>}
-
-
 
         <button
           className="filter-button"

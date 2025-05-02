@@ -5,7 +5,7 @@ import { useState } from "react";
 import EditProfileModal from "../components/EditProfileModal";
 import "../css/DashboardPage.css";
 
-// SVG Icon Components
+// SVG Icon Component
 const LogoutIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -40,7 +40,7 @@ const DashboardPage = () => {
 
       <div className="profile-section">
         <img
-          src={user.profilePic.url || "/default-avatar.png"}
+          src={user.profilePic?user.profilePic.url:"/default-avatar.png"}
           alt="Profile"
           className="profile-picture"
           whileHover={{ scale: 1.05 }}

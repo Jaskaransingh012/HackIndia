@@ -29,7 +29,10 @@ const userSchema = mongoose.Schema({
       },
       default: null
     },
-
+    group:[{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Group',
+    }],
     gallery: [{
         url: {
           type: String,

@@ -20,6 +20,10 @@ import About from "./pages/About";
 import Sidebar from "./components/Sidebar"; 
 import Gallery from "./pages/Gallery";
 import RecognitionResults from "./pages/recognition";
+import JoinGroupPage from "./pages/GroupPages/JoinGroup";
+import CreateGroupPage from "./pages/GroupPages/CreateGroup";
+import MyGroupsPage from "./pages/GroupPages/MyGroupsPage";
+import GroupDetailsPage from "./pages/GroupPages/GroupDetailPage";
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, user } = useAuthStore();
@@ -61,27 +65,8 @@ function App() {
   return (
 <>
     <div className="app-container">
-      <FloatingShape 
-        color="#22c55e"    /* bg-green-500 */
-        size="256px"       /* w-64 h-64 */
-        top="-5%" 
-        left="10%" 
-        delay={0} 
-      />
-      <FloatingShape 
-        color="#10b981"    /* bg-emerald-500 */
-        size="192px"      /* w-48 h-48 */
-        top="70%" 
-        left="80%" 
-        delay={5} 
-      />
-      <FloatingShape 
-        color="#84cc16"    /* bg-lime-500 */
-        size="128px"       /* w-32 h-32 */
-        top="40%" 
-        left="-10%" 
-        delay={2} 
-      />
+      <div className="main-container">
+
 
       <Routes>
         <Route
@@ -138,11 +123,45 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path='/group/create'
+          element={
+            <ProtectedRoute>
+              <CreateGroupPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path='/group/:id'
+          element={
+            <ProtectedRoute>
+              <GroupDetailsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path='/group/join/:code'
+          element={
+            <ProtectedRoute>
+              <JoinGroupPage />
+            </ProtectedRoute>
+          }
+        />
+
          <Route
           path='/about'
           element={
             <ProtectedRoute>
               <About />
+            </ProtectedRoute>
+          }
+        />
+         <Route
+          path='/my-groups'
+          element={
+            <ProtectedRoute>
+              <MyGroupsPage />
             </ProtectedRoute>
           }
         />
@@ -182,6 +201,7 @@ function App() {
         <Route path='*' element={<Navigate to='/upload' replace />} />
       </Routes>
       <Toaster />
+      </div>
     </div>
     </>
   );
